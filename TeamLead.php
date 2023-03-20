@@ -3,58 +3,93 @@
 
 class TeamLead
 {
-    private $state;
-    public  $junior;
-    public  $manager;
-    public  $hr;
+    private $currentState;
+    public $junior;
+    public $manager;
+    public $hr;
 
     const possibleStates = [
-        'good'     => [0 => 'normal',    1 => 'good'],
-        'normal'   => [0 => 'bad',       1 => 'good'],
-        'bad'      => [0 => 'fuck off',  1 => 'normal'],
-        'fuck off' => [0 => 'fuck off',  1 => 'bad'],
+        'good'     => [0 => 'normal', 1 => 'good'],
+        'normal'   => [0 => 'bad', 1 => 'good'],
+        'bad'      => [0 => 'fuck off', 1 => 'normal'],
+        'fuck off' => [0 => 'fuck off', 1 => 'bad'],
     ];
 
-    public function __construct($state)
+    public function __construct($currentState)
     {
-        $this->setState($state);
+        $this->setState($currentState);
         $this->manager = new Manager();
         $this->hr = new HR();
     }
 
-    public function setState($state)
+    public function getMinMaxPossibleState()
     {
         $array_keys_list = array_keys(self::possibleStates);
-        if (in_array($state, $array_keys_list)) {
-            $this->state = $state;
+        $stateMin = end($array_keys_list);
+        $stateMax = reset($array_keys_list);
+
+        return [
+            'min' => $stateMin,
+            'max' => $stateMax,
+        ];
+    }
+
+    public function setState($currentState)
+    {
+        $array_keys_list = array_keys(self::possibleStates);
+        if (in_array($currentState, $array_keys_list)) {
+            $this->currentState = $currentState;
             echo 'Current State is - ' . $this->getTeamLeadState() . PHP_EOL;
         } else {
             echo 'Enter Correct State' . PHP_EOL;
         }
     }
 
-    public function getStateBySignal($key)
+    public function getNextState($signal)
     {
-        $state = $this->state;
-        $nextStateBySignal = self::possibleStates[$state][$key];
+        $currentState = $this->currentState;
+        $nextState = self::possibleStates[$currentState][$signal];
 
-        return $nextStateBySignal;
+        return $nextState;
     }
 
-    public function input0signal($signal)
+    public function checkGoodOrBadWork($signal)
     {
-        echo 'Signal 0 received' . PHP_EOL;
-        $nextState = $this->getStateBySignal($signal);
+        $nextState = $this->getNextState($signal);
+        $minState = $this->getMinMaxPossibleState()['min'];
+        $maxState = $this->getMinMaxPossibleState()['max'];
 
-        $this->state === $nextState ? $this->hr->addCounter() : $this->setState($nextState);
+        if ($minState === $nextState && $signal === 0) {
+            $this->hr->addCounter();
+        }
+
+        if ($maxState === $nextState && $signal === 1) {
+            $this->manager->addCounter();
+        }
     }
 
-    public function input1signal($signal)
+    public function fromGoodToBadState($signal)
     {
-        echo 'Signal 1 received' . PHP_EOL;
-        $nextState = $this->getStateBySignal($signal);
+        $currentState = $this->currentState;
 
-        $this->state === $nextState ? $this->manager->addCounter() : $this->setState($nextState);
+        if ($signal === 0 && $currentState == 'good')
+        {
+            $this->setState('bad');
+        }
+    }
+
+    public function inputSignal($signal)
+    {
+        echo "Signal $signal received" . PHP_EOL;
+        $currentState = $this->currentState;
+        $nextState = $this->getNextState($signal);
+
+        if ($signal === 0 && $currentState == 'good')
+        {
+            $nextState = 'bad';
+        }
+
+        $this->getTeamLeadState() === $nextState ? $this->checkGoodOrBadWork($signal) : $this->setState($nextState);
     }
 
     public function getJuniorWork()
@@ -64,11 +99,12 @@ class TeamLead
 
     public function getTeamLeadState()
     {
-        return $this->state;
+        return $this->currentState;
     }
 
     public function checkJuniorWork()
     {
-        $this->getJuniorWork() === 1 ? $this->input1signal($signal = 1) : $this->input0signal($signal = 0);
+        $signal = $this->getJuniorWork();
+        $this->inputSignal($signal);
     }
 }
